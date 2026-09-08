@@ -652,15 +652,14 @@ test("replaces a saved variables file that is not a table", function()
     eq(EncounterSettingsDB.encounters[3132].settings.ffxDeath, "0", "setting after replacing the file")
 end)
 
-test("a wipe keeps the settings applied and says so", function()
+test("a wipe keeps the settings applied and prints nothing", function()
     local c = configuredClient()
     c:pullStart(3132)
     c.output = {}
     c:wipe(3132)
     eq(c.cvars.raidGraphicsParticleDensity, "0", "particle density after the wipe")
     eq(c.cvars.ffxDeath, "0", "ffxDeath after the wipe")
-    eq(c:count("keeping 2 settings until the next pull"), 1, "wipe line")
-    eq(c:count("settings were restored"), 0, "restore line")
+    eq(#c.output, 0, "lines printed at the wipe")
 end)
 
 test("re-pulling after a wipe writes nothing, and the kill restores the originals", function()

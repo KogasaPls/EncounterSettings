@@ -9,8 +9,6 @@ ns.L = L
 
 L.RESTORED = "restored %s to %s"
 L.RESTORED_MANY = "%d settings were restored"
-L.KEPT = "keeping %s until the next pull"
-L.KEPT_MANY = "keeping %d settings until the next pull"
 L.RESTORE_FAILED = "could not restore %s: %s"
 L.RESTORE_REFUSED = "the client refused to restore %s"
 L.CHANGED_DURING_ENCOUNTER = "%s was changed during the encounter, leaving it at %s"

@@ -82,18 +82,6 @@ local function restore(keep)
     end
 end
 
-local function keep()
-    local count, lastCVar = 0, nil
-    for cvar in pairs(db.active or {}) do
-        count, lastCVar = count + 1, cvar
-    end
-    if count == 1 then
-        say(L.KEPT, lastCVar)
-    elseif count > 1 then
-        say(L.KEPT_MANY, count)
-    end
-end
-
 local function apply(settings)
     local wanted = {}
     for cvar, value in pairs(settings) do
@@ -208,9 +196,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
         end
     elseif event == "ENCOUNTER_END" then
         local _, _, _, _, success = ...
-        if success == 0 then
-            keep()
-        else
+        if success ~= 0 then
             restore()
         end
     end
