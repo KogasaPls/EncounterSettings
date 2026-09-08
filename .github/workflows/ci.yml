@@ -16,3 +16,8 @@ jobs:
           args: --no-color -q
           annotate: warning
       - run: luajit test.lua
+      - uses: JohnnyMorganz/stylua-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: v2.3.1
+          args: --check .
