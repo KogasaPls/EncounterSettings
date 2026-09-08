@@ -9,6 +9,17 @@ local function joined(...)
     return table.concat(parts, " ")
 end
 
+local function tocFiles()
+    local files = {}
+    for line in io.lines(dir .. "/" .. ADDON .. ".toc") do
+        line = line:match("^%s*(.-)%s*$")
+        if line ~= "" and not line:find("^#") then
+            files[#files + 1] = (line:gsub("\\", "/"))
+        end
+    end
+    return files
+end
+
 local function newClient()
     local client = {
         cvars = {
@@ -107,7 +118,10 @@ local function newClient()
     function client:login()
         self.frames = {}
         self:install()
-        assert(loadfile(dir .. "/" .. ADDON .. ".lua"))(ADDON, {})
+        local ns = {}
+        for _, file in ipairs(tocFiles()) do
+            assert(loadfile(dir .. "/" .. file))(ADDON, ns)
+        end
         self:fire("ADDON_LOADED", ADDON)
         self:fire("PLAYER_ENTERING_WORLD", true, false)
     end
