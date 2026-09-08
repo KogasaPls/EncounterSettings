@@ -1,0 +1,7 @@
+package-as: EncounterSettings
+enable-nolib-creation: no
+ignore:
+  - test.lua
+  - .luacheckrc
+  - .editorconfig
+  - stylua.toml
