@@ -1,6 +1,6 @@
 ## Interface: 120100
 ## Title: Encounter Settings
-## Notes: Sets CVars when a chosen boss pull starts and restores them when it ends. Type /es.
+## Notes: Sets CVars when a chosen boss is pulled and restores them after the kill or on leaving. Type /es.
 ## Author: kogasa
 ## Version: @project-version@
 ## SavedVariables: EncounterSettingsDB
