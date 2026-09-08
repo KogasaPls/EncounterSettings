@@ -27,6 +27,8 @@ L.CLEARED = "%s: cleared"
 L.RAID_SETTINGS = "raid graphics settings are %s here"
 L.IN_EFFECT = "in effect"
 L.NOT_IN_EFFECT = "not in effect"
+L.ENCOUNTER_LINE = "%s: %s"
+L.SETTING = "%s = %s"
 L.ACTIVE = "active: %s = %s, will go back to %s"
 L.USAGE =
     "usage: /es set [encounterID] <cvar> <value>, /es unset [encounterID] <cvar>, /es clear [encounterID]; leave out the id to use the last boss pulled (%s)"

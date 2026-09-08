@@ -241,11 +241,11 @@ local function status()
     for id, encounter in pairs(db.encounters) do
         local parts = {}
         for cvar, value in pairs(encounter.settings) do
-            parts[#parts + 1] = cvar .. " = " .. value
+            parts[#parts + 1] = L.SETTING:format(cvar, value)
         end
-        say("%s: %s", label(id), table.concat(parts, ", "))
+        say(L.ENCOUNTER_LINE, label(id), table.concat(parts, ", "))
     end
-    say(L.USAGE, lastEncounter and ("%d %s"):format(lastEncounter.id, lastEncounter.name) or L.NONE_YET)
+    say(L.USAGE, lastEncounter and label(lastEncounter.id) or L.NONE_YET)
 end
 
 SLASH_ENCOUNTERSETTINGS1 = "/es"
