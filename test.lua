@@ -36,7 +36,7 @@ local function newClient()
         rejectWrites = {},
         flags = {},
         writes = 0,
-        failAfterWrites = nil,
+        failOnWrite = nil,
         frames = {},
         output = {},
     }
@@ -59,7 +59,7 @@ local function newClient()
                 return false
             end
             self.writes = self.writes + 1
-            if self.failAfterWrites and self.writes > self.failAfterWrites then
+            if self.writes == self.failOnWrite then
                 error("SetCVar refused " .. k)
             end
             if self.normalizeNumbers and tonumber(value) then
@@ -430,9 +430,8 @@ end)
 
 test("restores cvars applied before a later write throws", function()
     local c = configuredClient()
-    c.failAfterWrites = 1
+    c.failOnWrite = 2
     c:pullStart(3132)
-    c.failAfterWrites = nil
     c:pullEnd(3132)
     eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density after the pull")
     eq(c.cvars.ffxDeath, "1", "ffxDeath after the pull")
@@ -462,6 +461,36 @@ test("rejects RAID names in favour of the base name", function()
     assert(c:lastOutput():find("particleDensity", 1, true), "reply names the base cvar")
     c:slash("set 3132 RAIDsettingsEnabled 0")
     assert(EncounterSettingsDB.encounters[3132], "a RAID-prefixed cvar with no base twin is accepted")
+end)
+
+test("keeps restoring the other cvars when one restore throws, and retries it at the next chance", function()
+    local c = configuredClient()
+    c:pullStart(3132)
+    c.failOnWrite = 3
+    c:pullEnd(3132)
+    local pending = 0
+    for _ in pairs(EncounterSettingsDB.active) do
+        pending = pending + 1
+    end
+    eq(pending, 1, "cvars still pending after the failed restore")
+    local restored = (c.cvars.raidGraphicsParticleDensity == "3" and 1 or 0) + (c.cvars.ffxDeath == "1" and 1 or 0)
+    eq(restored, 1, "cvars restored despite the failure")
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density after the retry")
+    eq(c.cvars.ffxDeath, "1", "ffxDeath after the retry")
+    eq(EncounterSettingsDB.active, nil, "pending cvars after the retry")
+end)
+
+test("a pull that starts while a restore is still pending keeps the true original", function()
+    local c = configuredClient()
+    c:pullStart(3132)
+    c.failOnWrite = 3
+    c:pullEnd(3132)
+    c.failOnWrite = 5
+    c:pullStart(3132)
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density after the second pull")
+    eq(c.cvars.ffxDeath, "1", "ffxDeath after the second pull")
 end)
 
 test("every locale key the addon uses is defined in enUS", function()

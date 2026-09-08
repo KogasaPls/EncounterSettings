@@ -55,18 +55,28 @@ local function restore()
     end
     db.active = nil
     for cvar, saved in pairs(active) do
-        if GetCVar(cvar) == saved.applied then
-            SetCVar(cvar, saved.original)
-            say(L.RESTORED, cvar, saved.original)
-        else
+        if GetCVar(cvar) ~= saved.applied then
             say(L.CHANGED_DURING_ENCOUNTER, cvar, tostring(GetCVar(cvar)))
+        else
+            local ok, success = pcall(SetCVar, cvar, saved.original)
+            if ok and success then
+                say(L.RESTORED, cvar, saved.original)
+            else
+                if not ok then
+                    say(L.RESTORE_FAILED, cvar, tostring(success))
+                else
+                    say(L.RESTORE_REFUSED, cvar)
+                end
+                db.active = db.active or {}
+                db.active[cvar] = saved
+            end
         end
     end
 end
 
 local function apply(settings)
     restore()
-    local active = {}
+    local active = db.active or {}
     db.active = active
     for cvar, value in pairs(settings) do
         local target = targetCVar(cvar)
@@ -80,8 +90,10 @@ local function apply(settings)
             elseif not success then
                 say(L.SET_REFUSED, target, value)
             else
-                active[target] = { original = original, applied = GetCVar(target) }
-                say(L.SET, target, active[target].applied, original)
+                local saved = active[target] or { original = original }
+                saved.applied = GetCVar(target)
+                active[target] = saved
+                say(L.SET, target, saved.applied, saved.original)
             end
         end
     end

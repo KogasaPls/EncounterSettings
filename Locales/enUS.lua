@@ -8,6 +8,8 @@ local L = setmetatable({}, {
 ns.L = L
 
 L.RESTORED = "restored %s to %s"
+L.RESTORE_FAILED = "could not restore %s: %s"
+L.RESTORE_REFUSED = "the client refused to restore %s"
 L.CHANGED_DURING_ENCOUNTER = "%s was changed during the encounter, leaving it at %s"
 L.UNKNOWN_CVAR_SKIPPED = "%s is not a known cvar, skipping it"
 L.SET_FAILED = "could not set %s: %s"
