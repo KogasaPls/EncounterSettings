@@ -10,7 +10,7 @@ Changes CVars when a boss encounter starts and puts them back when it ends.
 /es                                       show all settings and the ID of the last boss you pulled
 ```
 
-Any CVar the client lets you change will work. For a `graphics*` CVar the `raidGraphics*` twin is used when 'Raid & Battleground' settings are enabled. Two useful ones:
+Any CVar the client lets you change will work. Inside a raid with 'Raid & Battleground' settings enabled, the `RAID` twin of a CVar is used instead (`raidGraphicsParticleDensity` for `graphicsParticleDensity`, `RAIDfarclip` for `farclip`), so configure the base name. Two useful ones:
 
 - `graphicsParticleDensity`: 0 (disabled) to 5 (ultra)
 - `graphicsViewDistance`: 0 to 9, shown as 1 to 10 in the options panel
