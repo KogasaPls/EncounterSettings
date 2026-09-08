@@ -257,9 +257,9 @@ local function help()
 end
 
 local function status()
-    local raidState = raidSettingsActive() and L.IN_EFFECT
-        or GetCVarBool("RAIDsettingsEnabled") and L.ENABLED_NOT_IN_EFFECT
-        or L.DISABLED
+    local raidState = raidSettingsActive() and L.RAID_ACTIVE
+        or GetCVarBool("RAIDsettingsEnabled") and L.RAID_INACTIVE
+        or L.RAID_DISABLED
     say(L.STATUS_RAID, raidState)
     say(L.STATUS_LAST_BOSS, lastEncounter and label(lastEncounter.id) or L.NONE_YET)
     if next(db.encounters) == nil then

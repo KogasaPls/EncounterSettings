@@ -603,7 +603,7 @@ test("status shows state in short lines and points at help", function()
     c:pullEnd(3132)
     c.output = {}
     c:slash("")
-    eq(c:count("raid graphics settings: in effect"), 1, "raid line")
+    eq(c:count("raid graphics settings: active"), 1, "raid line")
     eq(c:count("last boss pulled: 3132 Araz"), 1, "last boss line")
     eq(c:count("/es help for commands"), 1, "help pointer")
     eq(c:count("/es set [id] <cvar> <value>"), 0, "usage lines in status")
@@ -616,10 +616,10 @@ test("status distinguishes raid settings in effect, enabled elsewhere, and disab
     local c = newClient()
     c:login()
     c:slash("")
-    eq(c:count("raid graphics settings: in effect"), 1, "in a raid with the option on")
+    eq(c:count("raid graphics settings: active"), 1, "in a raid with the option on")
     c.instanceType = "party"
     c:slash("")
-    eq(c:count("raid graphics settings: enabled, not in effect here"), 1, "in a dungeon with the option on")
+    eq(c:count("raid graphics settings: enabled, inactive"), 1, "in a dungeon with the option on")
     c.cvars.RAIDsettingsEnabled = "0"
     c:slash("")
     eq(c:count("raid graphics settings: disabled"), 1, "with the option off")
