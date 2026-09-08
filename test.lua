@@ -619,7 +619,7 @@ test("status distinguishes raid settings in effect, enabled elsewhere, and disab
     eq(c:count("raid graphics settings: active"), 1, "in a raid with the option on")
     c.instanceType = "party"
     c:slash("")
-    eq(c:count("raid graphics settings: enabled, inactive"), 1, "in a dungeon with the option on")
+    eq(c:count("raid graphics settings: enabled but currently inactive"), 1, "in a dungeon with the option on")
     c.cvars.RAIDsettingsEnabled = "0"
     c:slash("")
     eq(c:count("raid graphics settings: disabled"), 1, "with the option off")
