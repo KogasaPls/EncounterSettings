@@ -612,6 +612,19 @@ test("status shows state in short lines and points at help", function()
     end
 end)
 
+test("status distinguishes raid settings in effect, enabled elsewhere, and disabled", function()
+    local c = newClient()
+    c:login()
+    c:slash("")
+    eq(c:count("raid graphics settings: in effect"), 1, "in a raid with the option on")
+    c.instanceType = "party"
+    c:slash("")
+    eq(c:count("raid graphics settings: enabled, not in effect here"), 1, "in a dungeon with the option on")
+    c.cvars.RAIDsettingsEnabled = "0"
+    c:slash("")
+    eq(c:count("raid graphics settings: disabled"), 1, "with the option off")
+end)
+
 test("every locale key the addon uses is defined in enUS", function()
     local ns = {}
     assert(loadfile(dir .. "/Locales/enUS.lua"))(ADDON, ns)
