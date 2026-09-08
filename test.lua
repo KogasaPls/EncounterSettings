@@ -637,6 +637,14 @@ test("status distinguishes raid settings in effect, enabled elsewhere, and disab
     eq(c:count("raid graphics settings: disabled"), 1, "with the option off")
 end)
 
+test("replaces a saved variables file that is not a table", function()
+    local c = newClient()
+    _G.EncounterSettingsDB = "corrupt"
+    c:login()
+    c:slash("set 3132 ffxDeath 0")
+    eq(EncounterSettingsDB.encounters[3132].settings.ffxDeath, "0", "setting after replacing the file")
+end)
+
 test("every locale key the addon uses is defined in enUS", function()
     local ns = {}
     assert(loadfile(dir .. "/Locales/enUS.lua"))(ADDON, ns)

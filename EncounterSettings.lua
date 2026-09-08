@@ -159,7 +159,9 @@ frame:SetScript("OnEvent", function(_, event, ...)
         if name ~= ADDON then
             return
         end
-        EncounterSettingsDB = EncounterSettingsDB or {}
+        if type(EncounterSettingsDB) ~= "table" then
+            EncounterSettingsDB = {}
+        end
         db = EncounterSettingsDB
         sanitize()
     elseif event == "PLAYER_ENTERING_WORLD" then
