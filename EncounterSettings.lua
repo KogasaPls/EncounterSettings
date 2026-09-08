@@ -249,19 +249,42 @@ local function clearEncounter(id)
     db.encounters[id] = nil
 end
 
+local function help()
+    say(L.HELP_SET)
+    say(L.HELP_UNSET)
+    say(L.HELP_CLEAR)
+    say(L.HELP_ID)
+end
+
 local function status()
-    say(L.RAID_SETTINGS, raidSettingsActive() and L.IN_EFFECT or L.NOT_IN_EFFECT)
+    local raidState = raidSettingsActive() and L.RAID_ACTIVE
+        or GetCVarBool("RAIDsettingsEnabled") and L.RAID_INACTIVE
+        or L.RAID_DISABLED
+    say(L.STATUS_RAID, raidState)
+    say(L.STATUS_LAST_BOSS, lastEncounter and label(lastEncounter.id) or L.NONE_YET)
+    if next(db.encounters) == nil then
+        say(L.STATUS_EMPTY)
+    end
+    local ids = {}
+    for id in pairs(db.encounters) do
+        ids[#ids + 1] = id
+    end
+    table.sort(ids)
+    for _, id in ipairs(ids) do
+        local cvars = {}
+        for cvar in pairs(db.encounters[id].settings) do
+            cvars[#cvars + 1] = cvar
+        end
+        table.sort(cvars)
+        say(#cvars == 1 and L.ENCOUNTER_HEADER_ONE or L.ENCOUNTER_HEADER, label(id), #cvars)
+        for _, cvar in ipairs(cvars) do
+            say(L.SETTING_LINE, cvar, db.encounters[id].settings[cvar])
+        end
+    end
     for cvar, saved in pairs(db.active or {}) do
         say(L.ACTIVE, cvar, saved.applied, saved.original)
     end
-    for id, encounter in pairs(db.encounters) do
-        local parts = {}
-        for cvar, value in pairs(encounter.settings) do
-            parts[#parts + 1] = L.SETTING:format(cvar, value)
-        end
-        say(L.ENCOUNTER_LINE, label(id), table.concat(parts, ", "))
-    end
-    say(L.USAGE, lastEncounter and label(lastEncounter.id) or L.NONE_YET)
+    say(L.HELP_HINT)
 end
 
 SLASH_ENCOUNTERSETTINGS1 = "/es"
@@ -279,6 +302,8 @@ SlashCmdList.ENCOUNTERSETTINGS = function(msg)
     local cvar, value = args:match("^(%S*)%s*(.-)$")
     if verb == "" then
         status()
+    elseif verb == "help" then
+        help()
     elseif not id then
         say(L.NO_BOSS_YET, verb)
     elseif verb == "set" and value ~= "" then
@@ -288,6 +313,6 @@ SlashCmdList.ENCOUNTERSETTINGS = function(msg)
     elseif verb == "clear" and cvar == "" then
         clearEncounter(id)
     else
-        status()
+        help()
     end
 end

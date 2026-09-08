@@ -367,20 +367,32 @@ test("remembers settings across logins", function()
     c:pullEnd(3132)
 end)
 
-test("status lists each encounter with its settings", function()
+test("status prints a header per encounter and one setting per line", function()
     local c = configuredClient()
+    c:slash("set 3133 ffxDeath 1")
+    c:pullStart(3132, "Araz")
+    c:pullEnd(3132)
+    c.output = {}
     c:slash("")
-    local listed = false
-    for _, line in ipairs(c.output) do
-        if
-            line:find("3132", 1, true)
-            and line:find("ffxDeath = 0", 1, true)
-            and line:find("graphicsParticleDensity = 0", 1, true)
-        then
-            listed = true
+    eq(c:count("3132 Araz (2 settings)"), 1, "header with two settings")
+    eq(c:count("3133  (1 setting)"), 1, "header with one setting")
+    eq(c:count("  graphicsParticleDensity = 0"), 1, "particle density line")
+    eq(c:count("  ffxDeath = 0"), 1, "ffxDeath line for 3132")
+    eq(c:count("  ffxDeath = 1"), 1, "ffxDeath line for 3133")
+    local header, first, second
+    for i, line in ipairs(c.output) do
+        if line:find("3132 Araz (2 settings)", 1, true) then
+            header = i
+        end
+        if line:find("  ffxDeath = 0", 1, true) then
+            first = i
+        end
+        if line:find("  graphicsParticleDensity = 0", 1, true) then
+            second = i
         end
     end
-    assert(listed, "status output lists encounter 3132 with both settings")
+    eq(first, header + 1, "settings follow their header, sorted")
+    eq(second, header + 2, "settings follow their header, sorted")
 end)
 
 test("clear removes every setting for an encounter", function()
@@ -583,6 +595,46 @@ test("refuses the graphics quality presets", function()
     assert(c:lastOutput():find("preset", 1, true), "reply explains it is a preset")
     c:slash("set 3132 raidGraphicsQuality 1")
     eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after the raid preset")
+end)
+
+test("help lists one command per line, and a malformed command prints help", function()
+    local c = newClient()
+    c:login()
+    c:slash("help")
+    eq(c:count("/es set [id] <cvar> <value>"), 1, "set line")
+    eq(c:count("/es unset [id] <cvar>"), 1, "unset line")
+    eq(c:count("/es clear [id]"), 1, "clear line")
+    eq(c:count("raid graphics settings"), 0, "status lines in help")
+    c:slash("bogus 3132 ffxDeath 0")
+    eq(c:count("/es set [id] <cvar> <value>"), 2, "set line after a malformed command")
+end)
+
+test("status shows state in short lines and points at help", function()
+    local c = configuredClient()
+    c:pullStart(3132, "Araz")
+    c:pullEnd(3132)
+    c.output = {}
+    c:slash("")
+    eq(c:count("raid graphics settings: active"), 1, "raid line")
+    eq(c:count("last boss pulled: 3132 Araz"), 1, "last boss line")
+    eq(c:count("/es help for commands"), 1, "help pointer")
+    eq(c:count("/es set [id] <cvar> <value>"), 0, "usage lines in status")
+    for _, line in ipairs(c.output) do
+        assert(#line < 120, "line too long: " .. line)
+    end
+end)
+
+test("status distinguishes raid settings in effect, enabled elsewhere, and disabled", function()
+    local c = newClient()
+    c:login()
+    c:slash("")
+    eq(c:count("raid graphics settings: active"), 1, "in a raid with the option on")
+    c.instanceType = "party"
+    c:slash("")
+    eq(c:count("raid graphics settings: enabled but currently inactive"), 1, "in a dungeon with the option on")
+    c.cvars.RAIDsettingsEnabled = "0"
+    c:slash("")
+    eq(c:count("raid graphics settings: disabled"), 1, "with the option off")
 end)
 
 test("every locale key the addon uses is defined in enUS", function()
