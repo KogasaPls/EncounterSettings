@@ -1,6 +1,14 @@
 local ADDON = "EncounterSettings"
 local dir = arg[0]:match("^(.*)/[^/]*$") or "."
 
+local rawformat = string.format
+string.format = function(fmt, ...)
+    for i = 1, select("#", ...) do
+        assert(select(i, ...) ~= nil, "nil argument " .. i .. " for format " .. fmt)
+    end
+    return rawformat(fmt, ...)
+end
+
 local function joined(...)
     local parts = {}
     for i = 1, select("#", ...) do
@@ -97,9 +105,6 @@ local function newClient()
             local frame = { events = {} }
             function frame:RegisterEvent(event)
                 self.events[event] = true
-            end
-            function frame:UnregisterEvent(event)
-                self.events[event] = nil
             end
             function frame:SetScript(_, handler)
                 self.handler = handler
@@ -300,10 +305,10 @@ end)
 test("uses the last seen encounter when no id is given", function()
     local c = newClient()
     c:login()
-    c:pullStart(3132, "Dimensius")
+    c:pullStart(3132, "Araz")
     c:pullEnd(3132)
     c:slash("set ffxDeath 0")
-    assert(c:lastOutput():find("Dimensius", 1, true), "reply names the encounter")
+    assert(c:lastOutput():find("Araz", 1, true), "reply names the encounter")
     c:pullStart(3132)
     eq(c.cvars.ffxDeath, "0", "during the next pull")
     c:pullEnd(3132)
@@ -379,7 +384,7 @@ end)
 
 test("unset and clear use the last seen encounter when no id is given", function()
     local c = configuredClient()
-    c:pullStart(3132, "Dimensius")
+    c:pullStart(3132, "Araz")
     c:pullEnd(3132)
     c:slash("unset ffxDeath")
     eq(EncounterSettingsDB.encounters[3132].settings.ffxDeath, nil, "ffxDeath after unset")
@@ -543,33 +548,6 @@ test("every locale key the addon uses is defined in enUS", function()
     for key in source:gmatch("%f[%w_]L%.([%w_]+)") do
         assert(rawget(ns.L, key) ~= nil, "missing locale key " .. key)
     end
-end)
-
-test("WeakAura trigger: one missed ENCOUNTER_END makes 0 the value it restores from then on", function()
-    local c = newClient()
-    c:install()
-    local function trigger(aura_env, e, id)
-        local var = GetCVar("RAIDsettingsEnabled") == "1" and "raidGraphicsParticleDensity" or "graphicsParticleDensity"
-        if e == "ENCOUNTER_START" and id == aura_env.encounterId then
-            aura_env.particleDensity = GetCVar(var)
-            SetCVar(var, "0")
-        elseif e == "ENCOUNTER_END" and id == aura_env.encounterId then
-            SetCVar(var, aura_env.particleDensity)
-        end
-    end
-    local env = { encounterId = 3132 }
-    trigger(env, "ENCOUNTER_START", 3132)
-    trigger(env, "ENCOUNTER_END", 3132)
-    eq(c.cvars.raidGraphicsParticleDensity, "3", "a normal pull restores")
-    trigger(env, "ENCOUNTER_START", 3132)
-    env = { encounterId = 3132 }
-    trigger(env, "ENCOUNTER_START", 3132)
-    trigger(env, "ENCOUNTER_END", 3132)
-    eq(c.cvars.raidGraphicsParticleDensity, "0", "the pull after a disconnect restores the override value")
-    trigger(env, "ENCOUNTER_START", 3132)
-    c.cvars.raidGraphicsParticleDensity = "5"
-    trigger(env, "ENCOUNTER_END", 3132)
-    eq(c.cvars.raidGraphicsParticleDensity, "0", "a change made during a pull is reverted to the stuck value")
 end)
 
 local failed = 0
