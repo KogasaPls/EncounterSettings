@@ -4,6 +4,7 @@
 ## Author: kogasa
 ## Version: @project-version@
 ## SavedVariables: EncounterSettingsDB
+## X-Curse-Project-ID: 1686953
 
 Locales\enUS.lua
 EncounterSettings.lua
