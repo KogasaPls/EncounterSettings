@@ -13,9 +13,28 @@ local function raidSettingsActive()
     return GetCVarBool("RAIDsettingsEnabled") and (instanceType == "raid" or instanceType == "pvp")
 end
 
-local function targetCVar(cvar)
-    if raidSettingsActive() and cvar:lower():find("^graphics") then
+local function raidTwin(cvar)
+    if cvar:lower():find("^graphics") then
         return "raidGraphics" .. cvar:sub(9)
+    end
+    return "RAID" .. cvar
+end
+
+local function baseOfTwin(cvar)
+    local lower = cvar:lower()
+    if lower:find("^raidgraphics") then
+        return "graphics" .. cvar:sub(13)
+    elseif lower:find("^raid") then
+        return cvar:sub(5)
+    end
+end
+
+local function targetCVar(cvar)
+    if raidSettingsActive() then
+        local twin = raidTwin(cvar)
+        if GetCVar(twin) ~= nil then
+            return twin
+        end
     end
     return cvar
 end
@@ -114,8 +133,9 @@ local function label(id)
 end
 
 local function setSetting(id, cvar, value)
-    if cvar:lower():find("^raidgraphics") then
-        say(L.USE_BASE_NAME, "graphics" .. cvar:sub(13))
+    local base = baseOfTwin(cvar)
+    if base and GetCVar(base) ~= nil then
+        say(L.USE_BASE_NAME, base)
         return
     end
     if GetCVar(cvar) == nil then

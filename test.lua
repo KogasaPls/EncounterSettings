@@ -26,6 +26,8 @@ local function newClient()
             graphicsParticleDensity = "4",
             raidGraphicsParticleDensity = "3",
             RAIDsettingsEnabled = "1",
+            particleDensity = "60",
+            RAIDparticleDensity = "40",
             ffxDeath = "1",
         },
         instanceType = "raid",
@@ -434,6 +436,32 @@ test("restores cvars applied before a later write throws", function()
     c:pullEnd(3132)
     eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density after the pull")
     eq(c.cvars.ffxDeath, "1", "ffxDeath after the pull")
+end)
+
+test("uses the RAID twin of a non-graphics cvar when raid settings apply", function()
+    local c = newClient()
+    c:login()
+    c:slash("set 3132 particleDensity 10")
+    c:pullStart(3132)
+    eq(c.cvars.RAIDparticleDensity, "10", "RAID twin during the pull")
+    eq(c.cvars.particleDensity, "60", "base cvar during the pull")
+    c:pullEnd(3132)
+    eq(c.cvars.RAIDparticleDensity, "40", "RAID twin after the pull")
+    c.instanceType = "party"
+    c:pullStart(3132)
+    eq(c.cvars.particleDensity, "10", "base cvar during a dungeon pull")
+    c:pullEnd(3132)
+    eq(c.cvars.particleDensity, "60", "base cvar after a dungeon pull")
+end)
+
+test("rejects RAID names in favour of the base name", function()
+    local c = newClient()
+    c:login()
+    c:slash("set 3132 RAIDparticleDensity 10")
+    eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after the rejected command")
+    assert(c:lastOutput():find("particleDensity", 1, true), "reply names the base cvar")
+    c:slash("set 3132 RAIDsettingsEnabled 0")
+    assert(EncounterSettingsDB.encounters[3132], "a RAID-prefixed cvar with no base twin is accepted")
 end)
 
 test("every locale key the addon uses is defined in enUS", function()
