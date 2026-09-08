@@ -249,10 +249,18 @@ local function clearEncounter(id)
     db.encounters[id] = nil
 end
 
+local function help()
+    say(L.HELP_SET)
+    say(L.HELP_UNSET)
+    say(L.HELP_CLEAR)
+    say(L.HELP_ID)
+end
+
 local function status()
-    say(L.RAID_SETTINGS, raidSettingsActive() and L.IN_EFFECT or L.NOT_IN_EFFECT)
-    for cvar, saved in pairs(db.active or {}) do
-        say(L.ACTIVE, cvar, saved.applied, saved.original)
+    say(L.STATUS_RAID, raidSettingsActive() and L.IN_EFFECT or L.NOT_IN_EFFECT)
+    say(L.STATUS_LAST_BOSS, lastEncounter and label(lastEncounter.id) or L.NONE_YET)
+    if next(db.encounters) == nil then
+        say(L.STATUS_EMPTY)
     end
     for id, encounter in pairs(db.encounters) do
         local parts = {}
@@ -261,7 +269,10 @@ local function status()
         end
         say(L.ENCOUNTER_LINE, label(id), table.concat(parts, ", "))
     end
-    say(L.USAGE, lastEncounter and label(lastEncounter.id) or L.NONE_YET)
+    for cvar, saved in pairs(db.active or {}) do
+        say(L.ACTIVE, cvar, saved.applied, saved.original)
+    end
+    say(L.HELP_HINT)
 end
 
 SLASH_ENCOUNTERSETTINGS1 = "/es"
@@ -279,6 +290,8 @@ SlashCmdList.ENCOUNTERSETTINGS = function(msg)
     local cvar, value = args:match("^(%S*)%s*(.-)$")
     if verb == "" then
         status()
+    elseif verb == "help" then
+        help()
     elseif not id then
         say(L.NO_BOSS_YET, verb)
     elseif verb == "set" and value ~= "" then
@@ -288,6 +301,6 @@ SlashCmdList.ENCOUNTERSETTINGS = function(msg)
     elseif verb == "clear" and cvar == "" then
         clearEncounter(id)
     else
-        status()
+        help()
     end
 end

@@ -585,6 +585,33 @@ test("refuses the graphics quality presets", function()
     eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after the raid preset")
 end)
 
+test("help lists one command per line, and a malformed command prints help", function()
+    local c = newClient()
+    c:login()
+    c:slash("help")
+    eq(c:count("/es set [id] <cvar> <value>"), 1, "set line")
+    eq(c:count("/es unset [id] <cvar>"), 1, "unset line")
+    eq(c:count("/es clear [id]"), 1, "clear line")
+    eq(c:count("raid graphics settings"), 0, "status lines in help")
+    c:slash("bogus 3132 ffxDeath 0")
+    eq(c:count("/es set [id] <cvar> <value>"), 2, "set line after a malformed command")
+end)
+
+test("status shows state in short lines and points at help", function()
+    local c = configuredClient()
+    c:pullStart(3132, "Araz")
+    c:pullEnd(3132)
+    c.output = {}
+    c:slash("")
+    eq(c:count("raid graphics settings: in effect"), 1, "raid line")
+    eq(c:count("last boss pulled: 3132 Araz"), 1, "last boss line")
+    eq(c:count("/es help for commands"), 1, "help pointer")
+    eq(c:count("/es set [id] <cvar> <value>"), 0, "usage lines in status")
+    for _, line in ipairs(c.output) do
+        assert(#line < 120, "line too long: " .. line)
+    end
+end)
+
 test("every locale key the addon uses is defined in enUS", function()
     local ns = {}
     assert(loadfile(dir .. "/Locales/enUS.lua"))(ADDON, ns)
