@@ -252,6 +252,7 @@ SLASH_ENCOUNTERSETTINGS1 = "/es"
 SLASH_ENCOUNTERSETTINGS2 = "/encountersettings"
 SlashCmdList.ENCOUNTERSETTINGS = function(msg)
     local verb, rest = msg:match("^%s*(%S*)%s*(.-)%s*$")
+    verb = verb:lower()
     local id, args = rest:match("^(%d+)%s*(.-)$")
     if id then
         id = tonumber(id)

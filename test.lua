@@ -525,6 +525,14 @@ test("drops malformed saved variables at load and coerces numbers to strings", f
     c:pullEnd(3133)
 end)
 
+test("accepts verbs in any case", function()
+    local c = newClient()
+    c:login()
+    c:slash("SET 3132 ffxDeath 0")
+    c:slash("Unset 3132 ffxDeath")
+    eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after SET and Unset")
+end)
+
 test("every locale key the addon uses is defined in enUS", function()
     local ns = {}
     assert(loadfile(dir .. "/Locales/enUS.lua"))(ADDON, ns)
