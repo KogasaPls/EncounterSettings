@@ -48,30 +48,32 @@ local function settingKey(settings, cvar)
     return cvar
 end
 
-local function restore()
+local function restore(keep)
     local active = db.active
     if not active then
         return
     end
-    db.active = nil
     local count, lastCVar, lastValue = 0, nil, nil
     for cvar, saved in pairs(active) do
-        if GetCVar(cvar) ~= saved.applied then
-            say(L.CHANGED_DURING_ENCOUNTER, cvar, tostring(GetCVar(cvar)))
-        else
-            local ok, success = pcall(SetCVar, cvar, saved.original)
-            if ok and success then
-                count, lastCVar, lastValue = count + 1, cvar, saved.original
+        if not (keep and keep[cvar]) then
+            if GetCVar(cvar) ~= saved.applied then
+                say(L.CHANGED_DURING_ENCOUNTER, cvar, tostring(GetCVar(cvar)))
+                active[cvar] = nil
             else
-                if not ok then
+                local ok, success = pcall(SetCVar, cvar, saved.original)
+                if ok and success then
+                    count, lastCVar, lastValue = count + 1, cvar, saved.original
+                    active[cvar] = nil
+                elseif not ok then
                     say(L.RESTORE_FAILED, cvar, tostring(success))
                 else
                     say(L.RESTORE_REFUSED, cvar)
                 end
-                db.active = db.active or {}
-                db.active[cvar] = saved
             end
         end
+    end
+    if next(active) == nil then
+        db.active = nil
     end
     if count == 1 then
         say(L.RESTORED, lastCVar, lastValue)
@@ -80,27 +82,49 @@ local function restore()
     end
 end
 
+local function keep()
+    local count, lastCVar = 0, nil
+    for cvar in pairs(db.active or {}) do
+        count, lastCVar = count + 1, cvar
+    end
+    if count == 1 then
+        say(L.KEPT, lastCVar)
+    elseif count > 1 then
+        say(L.KEPT_MANY, count)
+    end
+end
+
 local function apply(settings)
-    restore()
+    local wanted = {}
+    for cvar, value in pairs(settings) do
+        wanted[targetCVar(cvar)] = value
+    end
+    restore(wanted)
     local active = db.active or {}
     db.active = active
     local count, lastCVar, lastSaved = 0, nil, nil
-    for cvar, value in pairs(settings) do
-        local target = targetCVar(cvar)
-        local original = GetCVar(target)
-        if original == nil then
-            say(L.UNKNOWN_CVAR_SKIPPED, target)
-        else
-            local ok, success = pcall(SetCVar, target, value)
-            if not ok then
-                say(L.SET_FAILED, target, tostring(success))
-            elseif not success then
-                say(L.SET_REFUSED, target, value)
+    for target, value in pairs(wanted) do
+        local live = GetCVar(target)
+        local saved = active[target]
+        if saved and live ~= saved.applied then
+            saved = nil
+        end
+        if not (saved and saved.value == value) then
+            if live == nil then
+                say(L.UNKNOWN_CVAR_SKIPPED, target)
             else
-                local saved = active[target] or { original = original }
-                saved.applied = GetCVar(target)
-                active[target] = saved
-                count, lastCVar, lastSaved = count + 1, target, saved
+                local ok, success = pcall(SetCVar, target, value)
+                if not ok then
+                    say(L.SET_FAILED, target, tostring(success))
+                elseif not success then
+                    say(L.SET_REFUSED, target, value)
+                else
+                    saved = saved or { original = live }
+                    saved.value = value
+                    saved.applied = GetCVar(target)
+                    active[target] = saved
+                    count, lastCVar, lastSaved = count + 1, target, saved
+                end
             end
         end
     end
@@ -140,7 +164,8 @@ local function sanitize()
     db.active = active
     for cvar, saved in pairs(active or {}) do
         if type(cvar) == "string" and type(saved) == "table" then
-            saved.original, saved.applied = asString(saved.original), asString(saved.applied)
+            saved.original, saved.applied, saved.value =
+                asString(saved.original), asString(saved.applied), asString(saved.value)
         end
         if type(cvar) ~= "string" or type(saved) ~= "table" or not saved.original or not saved.applied then
             active[cvar] = nil
@@ -178,9 +203,16 @@ frame:SetScript("OnEvent", function(_, event, ...)
         if encounter then
             encounter.name = name
             apply(encounter.settings)
+        else
+            restore()
         end
     elseif event == "ENCOUNTER_END" then
-        restore()
+        local _, _, _, _, success = ...
+        if success == 0 then
+            keep()
+        else
+            restore()
+        end
     end
 end)
 
