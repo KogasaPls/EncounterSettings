@@ -1,0 +1,464 @@
+local ADDON = "EncounterSettings"
+local dir = arg[0]:match("^(.*)/[^/]*$") or "."
+
+local function joined(...)
+    local parts = {}
+    for i = 1, select("#", ...) do
+        parts[i] = tostring((select(i, ...)))
+    end
+    return table.concat(parts, " ")
+end
+
+local function newClient()
+    local client = {
+        cvars = {
+            graphicsParticleDensity = "4",
+            raidGraphicsParticleDensity = "3",
+            RAIDsettingsEnabled = "1",
+            ffxDeath = "1",
+        },
+        instanceType = "raid",
+        encounterInProgress = false,
+        normalizeNumbers = false,
+        rejectWrites = {},
+        flags = {},
+        writes = 0,
+        failAfterWrites = nil,
+        frames = {},
+        output = {},
+    }
+
+    function client:install()
+        local function key(name)
+            for k in pairs(self.cvars) do
+                if k:lower() == name:lower() then
+                    return k
+                end
+            end
+        end
+        _G.GetCVar = function(name)
+            local k = key(name)
+            return k and self.cvars[k]
+        end
+        _G.SetCVar = function(name, value)
+            local k = key(name)
+            if not k or self.rejectWrites[k] then
+                return false
+            end
+            self.writes = self.writes + 1
+            if self.failAfterWrites and self.writes > self.failAfterWrites then
+                error("SetCVar refused " .. k)
+            end
+            if self.normalizeNumbers and tonumber(value) then
+                value = tostring(tonumber(value))
+            end
+            self.cvars[k] = value
+            return true
+        end
+        _G.C_CVar = {
+            GetCVarInfo = function(name)
+                local k = key(name)
+                if not k then
+                    return nil
+                end
+                local flags = self.flags[k] or {}
+                return self.cvars[k], self.cvars[k], false, false, false, flags.secure or false, flags.readOnly or false
+            end,
+        }
+        _G.GetCVarBool = function(name)
+            return GetCVar(name) == "1"
+        end
+        _G.IsInInstance = function()
+            return self.instanceType ~= "none", self.instanceType
+        end
+        _G.C_InstanceEncounter = {
+            IsEncounterInProgress = function()
+                return self.encounterInProgress
+            end,
+        }
+        _G.SlashCmdList = {}
+        _G.print = function(...)
+            table.insert(self.output, joined(...))
+        end
+        _G.CreateFrame = function()
+            local frame = { events = {} }
+            function frame:RegisterEvent(event)
+                self.events[event] = true
+            end
+            function frame:UnregisterEvent(event)
+                self.events[event] = nil
+            end
+            function frame:SetScript(_, handler)
+                self.handler = handler
+            end
+            table.insert(client.frames, frame)
+            return frame
+        end
+    end
+
+    function client:fire(event, ...)
+        for _, frame in ipairs(self.frames) do
+            if frame.events[event] and frame.handler then
+                frame.handler(frame, event, ...)
+            end
+        end
+    end
+
+    function client:login()
+        self.frames = {}
+        self:install()
+        assert(loadfile(dir .. "/" .. ADDON .. ".lua"))(ADDON, {})
+        self:fire("ADDON_LOADED", ADDON)
+        self:fire("PLAYER_ENTERING_WORLD", true, false)
+    end
+
+    function client:pullStart(id, name)
+        self:fire("ENCOUNTER_START", id, name or "Boss", 16, 20)
+    end
+    function client:pullEnd(id)
+        self:fire("ENCOUNTER_END", id, "Boss", 16, 20, 0)
+    end
+    function client:slash(msg)
+        SlashCmdList.ENCOUNTERSETTINGS(msg)
+    end
+    function client:lastOutput()
+        return self.output[#self.output]
+    end
+
+    return client
+end
+
+local function configuredClient()
+    local c = newClient()
+    c:login()
+    c:slash("set 3132 graphicsParticleDensity 0")
+    c:slash("set 3132 ffxDeath 0")
+    return c
+end
+
+local tests = {}
+local function test(name, fn)
+    table.insert(tests, { name = name, fn = fn })
+end
+local function eq(actual, expected, what)
+    if actual ~= expected then
+        error(string.format("%s: expected %s, got %s", what, tostring(expected), tostring(actual)), 2)
+    end
+end
+
+test("sets every cvar configured for a listed encounter and restores them afterwards", function()
+    local c = configuredClient()
+    c:pullStart(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "particle density during the pull")
+    eq(c.cvars.ffxDeath, "0", "ffxDeath during the pull")
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density after the pull")
+    eq(c.cvars.ffxDeath, "1", "ffxDeath after the pull")
+end)
+
+test("applies only the settings configured for that encounter", function()
+    local c = configuredClient()
+    c:slash("set 3133 ffxDeath 0")
+    c:pullStart(3133)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density during the other pull")
+    eq(c.cvars.ffxDeath, "0", "ffxDeath during the other pull")
+    c:pullEnd(3133)
+    eq(c.cvars.ffxDeath, "1", "ffxDeath after the other pull")
+end)
+
+test("leaves unlisted encounters alone", function()
+    local c = configuredClient()
+    c:pullStart(1)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "during the pull")
+    eq(c.cvars.ffxDeath, "1", "ffxDeath during the pull")
+    c:pullEnd(1)
+end)
+
+test("does nothing outside instances", function()
+    local c = configuredClient()
+    c.instanceType = "none"
+    c:pullStart(3132)
+    eq(c.cvars.graphicsParticleDensity, "4", "base cvar during a world encounter")
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "raid cvar during a world encounter")
+    eq(c.cvars.ffxDeath, "1", "ffxDeath during a world encounter")
+    c:pullEnd(3132)
+    eq(c.cvars.ffxDeath, "1", "ffxDeath after a world encounter")
+end)
+
+test("uses the base graphics cvar when raid settings are off", function()
+    local c = configuredClient()
+    c.cvars.RAIDsettingsEnabled = "0"
+    c:pullStart(3132)
+    eq(c.cvars.graphicsParticleDensity, "0", "base cvar during the pull")
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "raid cvar during the pull")
+    c:pullEnd(3132)
+    eq(c.cvars.graphicsParticleDensity, "4", "base cvar after the pull")
+end)
+
+test("uses the base graphics cvar in a dungeon even with raid settings on", function()
+    local c = configuredClient()
+    c.instanceType = "party"
+    c:pullStart(3132)
+    eq(c.cvars.graphicsParticleDensity, "0", "base cvar during the pull")
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "raid cvar during the pull")
+    c:pullEnd(3132)
+    eq(c.cvars.graphicsParticleDensity, "4", "base cvar after the pull")
+end)
+
+test("restores on the next login when the session ended mid-pull", function()
+    local c = configuredClient()
+    c:pullStart(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "during the pull")
+    c:login()
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density after logging back in")
+    eq(c.cvars.ffxDeath, "1", "ffxDeath after logging back in")
+    c:pullStart(3132)
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "after the next pull")
+end)
+
+test("keeps the override across a reload during the pull", function()
+    local c = configuredClient()
+    c:pullStart(3132)
+    c.encounterInProgress = true
+    c:login()
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "after reloading mid-pull")
+    c.encounterInProgress = false
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "after the pull")
+end)
+
+test("keeps the saved values when ENCOUNTER_START fires twice", function()
+    local c = configuredClient()
+    c:pullStart(3132)
+    c:pullStart(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "during the pull")
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density after the pull")
+    eq(c.cvars.ffxDeath, "1", "ffxDeath after the pull")
+end)
+
+test("keeps a value the user set during the pull and restores the rest", function()
+    local c = configuredClient()
+    c:pullStart(3132)
+    c.cvars.raidGraphicsParticleDensity = "5"
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "5", "user's value after the pull")
+    eq(c.cvars.ffxDeath, "1", "ffxDeath after the pull")
+    c:pullStart(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "during the next pull")
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "5", "after the next pull")
+end)
+
+test("restores the cvar it changed even if raid settings were toggled mid-pull", function()
+    local c = configuredClient()
+    c:pullStart(3132)
+    c.cvars.RAIDsettingsEnabled = "0"
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "raid cvar after the pull")
+    eq(c.cvars.graphicsParticleDensity, "4", "base cvar after the pull")
+end)
+
+test("still restores when the client normalizes the value it wrote", function()
+    local c = newClient()
+    c.normalizeNumbers = true
+    c:login()
+    c:slash("set 3132 graphicsParticleDensity 0.0")
+    c:pullStart(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "during the pull")
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "after the pull")
+end)
+
+test("skips a configured cvar the client no longer knows and applies the rest", function()
+    local c = configuredClient()
+    EncounterSettingsDB.encounters[3132].settings.removedInSomePatch = "1"
+    c:pullStart(3132)
+    eq(c.cvars.removedInSomePatch, nil, "unknown cvar during the pull")
+    eq(c.cvars.ffxDeath, "0", "ffxDeath during the pull")
+    c:pullEnd(3132)
+    eq(c.cvars.ffxDeath, "1", "ffxDeath after the pull")
+end)
+
+test("uses the last seen encounter when no id is given", function()
+    local c = newClient()
+    c:login()
+    c:pullStart(3132, "Dimensius")
+    c:pullEnd(3132)
+    c:slash("set ffxDeath 0")
+    assert(c:lastOutput():find("Dimensius", 1, true), "reply names the encounter")
+    c:pullStart(3132)
+    eq(c.cvars.ffxDeath, "0", "during the next pull")
+    c:pullEnd(3132)
+end)
+
+test("refuses a setting without an id before any encounter was seen", function()
+    local c = newClient()
+    c:login()
+    c:slash("set ffxDeath 0")
+    eq(next(EncounterSettingsDB.encounters), nil, "encounters after the refused command")
+end)
+
+test("unset removes one setting, and drops the encounter once none are left", function()
+    local c = configuredClient()
+    c:slash("unset 3132 ffxDeath")
+    c:pullStart(3132)
+    eq(c.cvars.ffxDeath, "1", "ffxDeath during the pull")
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "particle density during the pull")
+    c:pullEnd(3132)
+    c:slash("unset 3132 graphicsParticleDensity")
+    eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after removing its last setting")
+end)
+
+test("rejects an unknown cvar", function()
+    local c = newClient()
+    c:login()
+    c:slash("set 3132 notACVar 1")
+    eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after the rejected command")
+end)
+
+test("rejects raidGraphics names in favour of the base name", function()
+    local c = newClient()
+    c:login()
+    c:slash("set 3132 raidGraphicsParticleDensity 0")
+    eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after the rejected command")
+    assert(c:lastOutput():find("graphicsParticleDensity", 1, true), "reply names the base cvar")
+end)
+
+test("remembers settings across logins", function()
+    local c = configuredClient()
+    c:login()
+    c:pullStart(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "particle density after relogging")
+    eq(c.cvars.ffxDeath, "0", "ffxDeath after relogging")
+    c:pullEnd(3132)
+end)
+
+test("status lists each encounter with its settings", function()
+    local c = configuredClient()
+    c:slash("")
+    local listed = false
+    for _, line in ipairs(c.output) do
+        if
+            line:find("3132", 1, true)
+            and line:find("ffxDeath = 0", 1, true)
+            and line:find("graphicsParticleDensity = 0", 1, true)
+        then
+            listed = true
+        end
+    end
+    assert(listed, "status output lists encounter 3132 with both settings")
+end)
+
+test("clear removes every setting for an encounter", function()
+    local c = configuredClient()
+    c:slash("set 3133 ffxDeath 0")
+    c:slash("clear 3132")
+    eq(EncounterSettingsDB.encounters[3132], nil, "cleared encounter entry")
+    c:pullStart(3133)
+    eq(c.cvars.ffxDeath, "0", "other encounter still applies")
+    c:pullEnd(3133)
+end)
+
+test("unset and clear use the last seen encounter when no id is given", function()
+    local c = configuredClient()
+    c:pullStart(3132, "Dimensius")
+    c:pullEnd(3132)
+    c:slash("unset ffxDeath")
+    eq(EncounterSettingsDB.encounters[3132].settings.ffxDeath, nil, "ffxDeath after unset")
+    c:slash("clear")
+    eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after clear")
+end)
+
+test("matches cvar names regardless of case", function()
+    local c = newClient()
+    c:login()
+    c:slash("set 3132 graphicsparticledensity 0")
+    c:slash("set 3132 GraphicsParticleDensity 0")
+    local count = 0
+    for _ in pairs(EncounterSettingsDB.encounters[3132].settings) do
+        count = count + 1
+    end
+    eq(count, 1, "settings stored for the two spellings")
+    c:pullStart(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "raid twin during the pull")
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "raid twin after the pull")
+    c:slash("unset 3132 GRAPHICSPARTICLEDENSITY")
+    eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after unset in another case")
+end)
+
+test("refuses secure and read-only cvars", function()
+    local c = newClient()
+    c.cvars.secureThing = "1"
+    c.flags.secureThing = { secure = true }
+    c.cvars.lockedThing = "1"
+    c.flags.lockedThing = { readOnly = true }
+    c:login()
+    c:slash("set 3132 secureThing 0")
+    c:slash("set 3132 lockedThing 0")
+    eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after refused commands")
+end)
+
+test("reports a write the client rejects instead of tracking it", function()
+    local c = configuredClient()
+    c.rejectWrites.ffxDeath = true
+    c:pullStart(3132)
+    eq(c.cvars.ffxDeath, "1", "rejected cvar during the pull")
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "other cvar during the pull")
+    assert(EncounterSettingsDB.active.ffxDeath == nil, "rejected cvar is not tracked")
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "other cvar after the pull")
+end)
+
+test("restores cvars applied before a later write throws", function()
+    local c = configuredClient()
+    c.failAfterWrites = 1
+    c:pullStart(3132)
+    c.failAfterWrites = nil
+    c:pullEnd(3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density after the pull")
+    eq(c.cvars.ffxDeath, "1", "ffxDeath after the pull")
+end)
+
+test("WeakAura trigger: one missed ENCOUNTER_END makes 0 the value it restores from then on", function()
+    local c = newClient()
+    c:install()
+    local function trigger(aura_env, e, id)
+        local var = GetCVar("RAIDsettingsEnabled") == "1" and "raidGraphicsParticleDensity" or "graphicsParticleDensity"
+        if e == "ENCOUNTER_START" and id == aura_env.encounterId then
+            aura_env.particleDensity = GetCVar(var)
+            SetCVar(var, "0")
+        elseif e == "ENCOUNTER_END" and id == aura_env.encounterId then
+            SetCVar(var, aura_env.particleDensity)
+        end
+    end
+    local env = { encounterId = 3132 }
+    trigger(env, "ENCOUNTER_START", 3132)
+    trigger(env, "ENCOUNTER_END", 3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "a normal pull restores")
+    trigger(env, "ENCOUNTER_START", 3132)
+    env = { encounterId = 3132 }
+    trigger(env, "ENCOUNTER_START", 3132)
+    trigger(env, "ENCOUNTER_END", 3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "the pull after a disconnect restores the override value")
+    trigger(env, "ENCOUNTER_START", 3132)
+    c.cvars.raidGraphicsParticleDensity = "5"
+    trigger(env, "ENCOUNTER_END", 3132)
+    eq(c.cvars.raidGraphicsParticleDensity, "0", "a change made during a pull is reverted to the stuck value")
+end)
+
+local failed = 0
+for _, t in ipairs(tests) do
+    _G.EncounterSettingsDB = nil
+    local ok, err = pcall(t.fn)
+    if ok then
+        io.write("ok    ", t.name, "\n")
+    else
+        failed = failed + 1
+        io.write("FAIL  ", t.name, "\n      ", tostring(err), "\n")
+    end
+end
+io.write(string.format("%d tests, %d failed\n", #tests, failed))
+os.exit(failed == 0 and 0 or 1)
