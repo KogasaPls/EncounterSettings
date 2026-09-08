@@ -102,6 +102,40 @@ local function apply(settings)
     end
 end
 
+local function asString(value)
+    if type(value) == "number" then
+        return tostring(value)
+    end
+    if type(value) == "string" then
+        return value
+    end
+end
+
+local function sanitize()
+    local encounters = type(db.encounters) == "table" and db.encounters or {}
+    db.encounters = encounters
+    for id, encounter in pairs(encounters) do
+        if type(id) ~= "number" or type(encounter) ~= "table" or type(encounter.settings) ~= "table" then
+            encounters[id] = nil
+        else
+            encounter.name = asString(encounter.name) or ""
+            for cvar, value in pairs(encounter.settings) do
+                encounter.settings[cvar] = type(cvar) == "string" and asString(value) or nil
+            end
+        end
+    end
+    local active = type(db.active) == "table" and db.active or nil
+    db.active = active
+    for cvar, saved in pairs(active or {}) do
+        if type(cvar) == "string" and type(saved) == "table" then
+            saved.original, saved.applied = asString(saved.original), asString(saved.applied)
+        end
+        if type(cvar) ~= "string" or type(saved) ~= "table" or not saved.original or not saved.applied then
+            active[cvar] = nil
+        end
+    end
+end
+
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -115,7 +149,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
         end
         EncounterSettingsDB = EncounterSettingsDB or {}
         db = EncounterSettingsDB
-        db.encounters = db.encounters or {}
+        sanitize()
     elseif event == "PLAYER_ENTERING_WORLD" then
         if not C_InstanceEncounter.IsEncounterInProgress() then
             restore()

@@ -493,6 +493,38 @@ test("a pull that starts while a restore is still pending keeps the true origina
     eq(c.cvars.ffxDeath, "1", "ffxDeath after the second pull")
 end)
 
+test("drops malformed saved variables at load and coerces numbers to strings", function()
+    local c = newClient()
+    c.cvars.raidGraphicsParticleDensity = "0"
+    _G.EncounterSettingsDB = {
+        encounters = {
+            ["3132"] = { name = "text key", settings = { ffxDeath = "0" } },
+            [3133] = { settings = { ffxDeath = 0, [7] = "0", broken = true } },
+            [3134] = "junk",
+            [3135] = { name = "no settings" },
+        },
+        active = {
+            raidGraphicsParticleDensity = { original = 3, applied = "0" },
+            ffxDeath = { original = "1" },
+            junk = 5,
+        },
+    }
+    c:login()
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density after login")
+    eq(EncounterSettingsDB.active, nil, "pending cvars after login")
+    eq(EncounterSettingsDB.encounters["3132"], nil, "string-keyed encounter")
+    eq(EncounterSettingsDB.encounters[3134], nil, "non-table encounter")
+    eq(EncounterSettingsDB.encounters[3135], nil, "encounter without settings")
+    eq(EncounterSettingsDB.encounters[3133].name, "", "missing name")
+    eq(EncounterSettingsDB.encounters[3133].settings.ffxDeath, "0", "numeric value coerced")
+    eq(EncounterSettingsDB.encounters[3133].settings[7], nil, "numeric cvar key")
+    eq(EncounterSettingsDB.encounters[3133].settings.broken, nil, "boolean value")
+    c:slash("")
+    c:pullStart(3133)
+    eq(c.cvars.ffxDeath, "0", "ffxDeath during the pull")
+    c:pullEnd(3133)
+end)
+
 test("every locale key the addon uses is defined in enUS", function()
     local ns = {}
     assert(loadfile(dir .. "/Locales/enUS.lua"))(ADDON, ns)
