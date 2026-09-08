@@ -196,6 +196,10 @@ local function setSetting(id, cvar, value)
         say(L.USE_BASE_NAME, base)
         return
     end
+    if cvar:lower() == "graphicsquality" then
+        say(L.PRESET, cvar)
+        return
+    end
     if GetCVar(cvar) == nil then
         say(L.UNKNOWN_CVAR, cvar)
         return

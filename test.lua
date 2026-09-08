@@ -34,6 +34,8 @@ local function newClient()
             graphicsParticleDensity = "4",
             raidGraphicsParticleDensity = "3",
             RAIDsettingsEnabled = "1",
+            graphicsQuality = "7",
+            RAIDgraphicsQuality = "4",
             particleDensity = "60",
             RAIDparticleDensity = "40",
             ffxDeath = "1",
@@ -571,6 +573,16 @@ test("reports two or more applied or restored settings as a count", function()
     c:pullEnd(3132)
     eq(c:count("2 settings were restored"), 1, "restore count line")
     eq(c:count("restored raidGraphicsParticleDensity to"), 0, "per-cvar restore lines")
+end)
+
+test("refuses the graphics quality presets", function()
+    local c = newClient()
+    c:login()
+    c:slash("set 3132 graphicsQuality 1")
+    eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after the preset")
+    assert(c:lastOutput():find("preset", 1, true), "reply explains it is a preset")
+    c:slash("set 3132 raidGraphicsQuality 1")
+    eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after the raid preset")
 end)
 
 test("every locale key the addon uses is defined in enUS", function()
