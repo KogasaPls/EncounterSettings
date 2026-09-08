@@ -367,20 +367,32 @@ test("remembers settings across logins", function()
     c:pullEnd(3132)
 end)
 
-test("status lists each encounter with its settings", function()
+test("status prints a header per encounter and one setting per line", function()
     local c = configuredClient()
+    c:slash("set 3133 ffxDeath 1")
+    c:pullStart(3132, "Araz")
+    c:pullEnd(3132)
+    c.output = {}
     c:slash("")
-    local listed = false
-    for _, line in ipairs(c.output) do
-        if
-            line:find("3132", 1, true)
-            and line:find("ffxDeath = 0", 1, true)
-            and line:find("graphicsParticleDensity = 0", 1, true)
-        then
-            listed = true
+    eq(c:count("3132 Araz (2 settings)"), 1, "header with two settings")
+    eq(c:count("3133  (1 setting)"), 1, "header with one setting")
+    eq(c:count("  graphicsParticleDensity = 0"), 1, "particle density line")
+    eq(c:count("  ffxDeath = 0"), 1, "ffxDeath line for 3132")
+    eq(c:count("  ffxDeath = 1"), 1, "ffxDeath line for 3133")
+    local header, first, second
+    for i, line in ipairs(c.output) do
+        if line:find("3132 Araz (2 settings)", 1, true) then
+            header = i
+        end
+        if line:find("  ffxDeath = 0", 1, true) then
+            first = i
+        end
+        if line:find("  graphicsParticleDensity = 0", 1, true) then
+            second = i
         end
     end
-    assert(listed, "status output lists encounter 3132 with both settings")
+    eq(first, header + 1, "settings follow their header, sorted")
+    eq(second, header + 2, "settings follow their header, sorted")
 end)
 
 test("clear removes every setting for an encounter", function()

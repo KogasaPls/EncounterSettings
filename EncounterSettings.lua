@@ -265,12 +265,21 @@ local function status()
     if next(db.encounters) == nil then
         say(L.STATUS_EMPTY)
     end
-    for id, encounter in pairs(db.encounters) do
-        local parts = {}
-        for cvar, value in pairs(encounter.settings) do
-            parts[#parts + 1] = L.SETTING:format(cvar, value)
+    local ids = {}
+    for id in pairs(db.encounters) do
+        ids[#ids + 1] = id
+    end
+    table.sort(ids)
+    for _, id in ipairs(ids) do
+        local cvars = {}
+        for cvar in pairs(db.encounters[id].settings) do
+            cvars[#cvars + 1] = cvar
         end
-        say(L.ENCOUNTER_LINE, label(id), table.concat(parts, ", "))
+        table.sort(cvars)
+        say(#cvars == 1 and L.ENCOUNTER_HEADER_ONE or L.ENCOUNTER_HEADER, label(id), #cvars)
+        for _, cvar in ipairs(cvars) do
+            say(L.SETTING_LINE, cvar, db.encounters[id].settings[cvar])
+        end
     end
     for cvar, saved in pairs(db.active or {}) do
         say(L.ACTIVE, cvar, saved.applied, saved.original)
