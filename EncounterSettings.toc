@@ -5,4 +5,5 @@
 ## Version: @project-version@
 ## SavedVariables: EncounterSettingsDB
 
+Locales\enUS.lua
 EncounterSettings.lua

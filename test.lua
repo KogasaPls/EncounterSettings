@@ -436,6 +436,17 @@ test("restores cvars applied before a later write throws", function()
     eq(c.cvars.ffxDeath, "1", "ffxDeath after the pull")
 end)
 
+test("every locale key the addon uses is defined in enUS", function()
+    local ns = {}
+    assert(loadfile(dir .. "/Locales/enUS.lua"))(ADDON, ns)
+    local file = assert(io.open(dir .. "/" .. ADDON .. ".lua"))
+    local source = file:read("*a")
+    file:close()
+    for key in source:gmatch("%f[%w_]L%.([%w_]+)") do
+        assert(rawget(ns.L, key) ~= nil, "missing locale key " .. key)
+    end
+end)
+
 test("WeakAura trigger: one missed ENCOUNTER_END makes 0 the value it restores from then on", function()
     local c = newClient()
     c:install()
