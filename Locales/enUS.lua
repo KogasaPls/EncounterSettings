@@ -8,6 +8,7 @@ local L = setmetatable({}, {
 ns.L = L
 
 L.RESTORED = "restored %s to %s"
+L.RESTORED_MANY = "%d settings were restored"
 L.RESTORE_FAILED = "could not restore %s: %s"
 L.RESTORE_REFUSED = "the client refused to restore %s"
 L.CHANGED_DURING_ENCOUNTER = "%s was changed during the encounter, leaving it at %s"
@@ -15,6 +16,7 @@ L.UNKNOWN_CVAR_SKIPPED = "%s is not a known cvar, skipping it"
 L.SET_FAILED = "could not set %s: %s"
 L.SET_REFUSED = "the client refused to set %s to %s"
 L.SET = "set %s to %s (was %s)"
+L.SET_MANY = "%d settings were applied"
 L.USE_BASE_NAME = "set %s instead; its RAID twin is used on its own whenever raid graphics settings are in effect"
 L.UNKNOWN_CVAR = "%s is not a known cvar"
 L.READ_ONLY = "%s is read-only"

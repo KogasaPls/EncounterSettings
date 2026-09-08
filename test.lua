@@ -145,6 +145,15 @@ local function newClient()
     function client:lastOutput()
         return self.output[#self.output]
     end
+    function client:count(text)
+        local n = 0
+        for _, line in ipairs(self.output) do
+            if line:find(text, 1, true) then
+                n = n + 1
+            end
+        end
+        return n
+    end
 
     return client
 end
@@ -429,6 +438,8 @@ test("reports a write the client rejects instead of tracking it", function()
     eq(c.cvars.ffxDeath, "1", "rejected cvar during the pull")
     eq(c.cvars.raidGraphicsParticleDensity, "0", "other cvar during the pull")
     assert(EncounterSettingsDB.active.ffxDeath == nil, "rejected cvar is not tracked")
+    eq(c:count("the client refused to set ffxDeath to 0"), 1, "refusal lines")
+    eq(c:count("set raidGraphicsParticleDensity to 0 (was 3)"), 1, "single success reported in full")
     c:pullEnd(3132)
     eq(c.cvars.raidGraphicsParticleDensity, "3", "other cvar after the pull")
 end)
@@ -537,6 +548,29 @@ test("accepts verbs in any case", function()
     eq(EncounterSettingsDB.encounters[3132].settings.ffxDeath, "0", "setting after SET")
     c:slash("Unset 3132 ffxDeath")
     eq(EncounterSettingsDB.encounters[3132], nil, "encounter entry after Unset")
+end)
+
+test("reports a single applied or restored setting in full", function()
+    local c = newClient()
+    c:login()
+    c:slash("set 3132 graphicsParticleDensity 0")
+    c:pullStart(3132)
+    eq(c:count("set raidGraphicsParticleDensity to 0 (was 3)"), 1, "apply line")
+    eq(c:count("settings were applied"), 0, "apply count line")
+    c:pullEnd(3132)
+    eq(c:count("restored raidGraphicsParticleDensity to 3"), 1, "restore line")
+    eq(c:count("settings were restored"), 0, "restore count line")
+end)
+
+test("reports two or more applied or restored settings as a count", function()
+    local c = configuredClient()
+    c:pullStart(3132)
+    eq(c:count("2 settings were applied"), 1, "apply count line")
+    eq(c:count("set raidGraphicsParticleDensity to"), 0, "per-cvar apply lines")
+    eq(c:count("set ffxDeath to"), 0, "per-cvar apply lines")
+    c:pullEnd(3132)
+    eq(c:count("2 settings were restored"), 1, "restore count line")
+    eq(c:count("restored raidGraphicsParticleDensity to"), 0, "per-cvar restore lines")
 end)
 
 test("every locale key the addon uses is defined in enUS", function()

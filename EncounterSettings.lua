@@ -54,13 +54,14 @@ local function restore()
         return
     end
     db.active = nil
+    local count, lastCVar, lastValue = 0, nil, nil
     for cvar, saved in pairs(active) do
         if GetCVar(cvar) ~= saved.applied then
             say(L.CHANGED_DURING_ENCOUNTER, cvar, tostring(GetCVar(cvar)))
         else
             local ok, success = pcall(SetCVar, cvar, saved.original)
             if ok and success then
-                say(L.RESTORED, cvar, saved.original)
+                count, lastCVar, lastValue = count + 1, cvar, saved.original
             else
                 if not ok then
                     say(L.RESTORE_FAILED, cvar, tostring(success))
@@ -72,12 +73,18 @@ local function restore()
             end
         end
     end
+    if count == 1 then
+        say(L.RESTORED, lastCVar, lastValue)
+    elseif count > 1 then
+        say(L.RESTORED_MANY, count)
+    end
 end
 
 local function apply(settings)
     restore()
     local active = db.active or {}
     db.active = active
+    local count, lastCVar, lastSaved = 0, nil, nil
     for cvar, value in pairs(settings) do
         local target = targetCVar(cvar)
         local original = GetCVar(target)
@@ -93,9 +100,14 @@ local function apply(settings)
                 local saved = active[target] or { original = original }
                 saved.applied = GetCVar(target)
                 active[target] = saved
-                say(L.SET, target, saved.applied, saved.original)
+                count, lastCVar, lastSaved = count + 1, target, saved
             end
         end
+    end
+    if count == 1 then
+        say(L.SET, lastCVar, lastSaved.applied, lastSaved.original)
+    elseif count > 1 then
+        say(L.SET_MANY, count)
     end
     if next(active) == nil then
         db.active = nil
