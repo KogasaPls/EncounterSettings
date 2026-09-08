@@ -22,15 +22,5 @@ read_globals = {
 }
 
 files["test.lua"] = {
-    globals = {
-        "C_CVar",
-        "C_InstanceEncounter",
-        "CreateFrame",
-        "GetCVar",
-        "GetCVarBool",
-        "IsInInstance",
-        "SetCVar",
-        "SlashCmdList",
-        "print",
-    },
+    globals = { "string" },
 }
