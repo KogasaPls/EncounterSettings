@@ -1,0 +1,22 @@
+# EncounterSettings
+
+Changes CVars when a boss encounter starts and puts them back when it ends.
+
+```
+/es set 3420 graphicsParticleDensity 0    hide particle effects on Sszorak (encounter 3420)
+/es unset 3420 graphicsParticleDensity    clear that setting
+/es clear 3420                            clear every setting for Sszorak
+/es set graphicsParticleDensity 0         leave out the ID to use the last boss you pulled
+/es                                       show all settings and the ID of the last boss you pulled
+```
+
+Any CVar the client lets you change will work. For a `graphics*` CVar the `raidGraphics*` twin is used when 'Raid & Battleground' settings are enabled. Two useful ones:
+
+- `graphicsParticleDensity`: 0 (disabled) to 5 (ultra)
+- `graphicsViewDistance`: 0 to 9, shown as 1 to 10 in the options panel
+
+The wiki's [complete list of console variables](https://warcraft.wiki.gg/wiki/Console_variables/Complete_list) has the other graphics settings.
+
+## Development
+
+`luajit test.lua` runs the tests against a stubbed client and `luacheck .` lints. Tags of the form `vX.Y.Z` are packaged and published by the BigWigs packager.
