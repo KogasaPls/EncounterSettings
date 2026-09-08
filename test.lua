@@ -732,6 +732,18 @@ test("logging back in after a wipe restores the settings", function()
     eq(c.cvars.raidGraphicsParticleDensity, "3", "particle density after logging in")
 end)
 
+test("drops the record of a cvar the client no longer knows without calling it changed", function()
+    local c = configuredClient()
+    c:pullStart(3132)
+    c.cvars.ffxDeath = nil
+    c.output = {}
+    c:pullEnd(3132)
+    eq(c:count("ffxDeath is no longer a known cvar, dropping it"), 1, "dropped line")
+    eq(c:count("was changed during the encounter"), 0, "changed line")
+    eq(c.cvars.raidGraphicsParticleDensity, "3", "the other cvar after the kill")
+    eq(EncounterSettingsDB.active, nil, "active overrides after the kill")
+end)
+
 test("every locale key the addon uses is defined in enUS", function()
     local ns = {}
     assert(loadfile(dir .. "/Locales/enUS.lua"))(ADDON, ns)

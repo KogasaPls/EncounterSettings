@@ -56,8 +56,12 @@ local function restore(keep)
     local count, lastCVar, lastValue = 0, nil, nil
     for cvar, saved in pairs(active) do
         if not (keep and keep[cvar]) then
-            if GetCVar(cvar) ~= saved.applied then
-                say(L.CHANGED_DURING_ENCOUNTER, cvar, tostring(GetCVar(cvar)))
+            local live = GetCVar(cvar)
+            if live == nil then
+                say(L.UNKNOWN_CVAR_DROPPED, cvar)
+                active[cvar] = nil
+            elseif live ~= saved.applied then
+                say(L.CHANGED_DURING_ENCOUNTER, cvar, live)
                 active[cvar] = nil
             else
                 local ok, success = pcall(SetCVar, cvar, saved.original)
